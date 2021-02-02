@@ -18,9 +18,6 @@ def displayDualSpectrum(x, fs, color=None, label=None, linestyle=None):
     plt.ylim(ymin=0)
 
 
-
-
-
 # UI tool to inspect segments of a larger signal in time and frequency domain   
 class signalAnalyzer:
     def __init__(self, x_n, f_s, fig_num=1):
@@ -131,6 +128,192 @@ class signalAnalyzer:
             pass
         self.fig.tight_layout(pad=0.1, w_pad=1.0, h_pad=2.0)
 
+# Funksjoner og klassedefinisjoner tilhørende demo om Frekvensmiksing        
+
+def getImpulseLines(f, A, f_max):
+    assert len(f)==len(A), "Error, arrays must be same length"
+    f_line = np.concatenate(([-f_max], np.outer(f, np.ones(3)).flatten(), [f_max]))
+    A_line = np.concatenate(([0], np.outer(A, [0, 1, 0]).flatten(), [0]))   
+    return [f_line, A_line]
+
+def sliderPanelSetup(set_details, n_of_sets=1, slider_type='float'):
+    panel_col = []
+    sliders = {}
+    for i in range(n_of_sets):
+        panel_row = []
+        for item in set_details:
+            mathtext = item['description']
+            mathtext = mathtext.strip('$')
+            if n_of_sets > 1:
+                if mathtext.find(" ") == -1:
+                    mathtext = '$' + mathtext + '_' + str(i+1) + '$' 
+                else:
+                    mathtext = '$' + mathtext.replace(" ", '_'+str(i+1)+'\ ', 1) + '$'
+            else:
+                mathtext = '$' + mathtext + '$'
+            #mathtext = r'{}'.format(mathtext)
+
+            panel_row.append(FloatSlider(value=item['value'], 
+                                         min=item['min'],
+                                         max = item['max'], 
+                                         step = item['step'], 
+                                         description=mathtext, 
+                                         layout=Layout(width='95%')))
+            
+            sliders[item['keyword']+str(i+1)] = panel_row[-1]
+        panel_col.append(HBox(panel_row, layout = Layout(width='100%')))
+    layout = VBox(panel_col, layout = Layout(width='90%'))
+    return sliders, layout
+
+
+class dualSpectrumPlot:
+    def __init__(self, ax, f_max, A_max=1, N=1):
+        self.N = N
+        self.ax = ax
+        self.f_max =f_max
+        self.A_max = A_max
+        
+        f_nd = np.outer([-f_max, f_max], np.ones(N))
+        A_nd = np.zeros((2, self.N))
+   
+        self.lines = plt.plot(f_nd, A_nd, linewidth=2)
+    
+        self.ax.axis([-f_max, f_max, 0, A_max])
+        self.ax.grid(True)
+        self.ax.set_xlabel("Frekvens (Hz)")
+    
+    def update(self, new_x, new_y):
+        assert self.N == len(new_x) == len(new_y), "Error: Parameter lenght different from number of sines."
+        for i in range(self.N):
+            self.lines[i].set_xdata(new_x[i])  
+            self.lines[i].set_ydata(new_y[i])  
+            
+    def setLabels(self, names):
+        self.ax.legend(self.lines, names, loc='upper right')
+        
+    def setStyles(self, styles):
+        for i in range(min(len(styles), len(self.lines))):
+            try:
+                self.lines[i].set_color(styles[i]['color'])
+            except:
+                pass
+            
+            try:
+                self.lines[i].set_linestyle(styles[i]['linestyle'])
+            except:
+                pass    
+
+class timeSeriesPlot:
+    def __init__(self, ax, t, A_max, N=1, t_unit='s'):
+        res  = len(t)
+        self.N = N
+        t_nd = np.outer(t, np.ones(self.N))
+        x_t = np.zeros((res, self.N))          
+
+        self.ax = ax
+        self.lines = self.ax.plot(t_nd, x_t)
+        
+        # avgrensning av akser, rutenett, merkede punkt på aksene, tittel, aksenavn
+        self.ax.axis([t[0], t[-1], -A_max, A_max])
+        self.ax.grid(True)
+        self.ax.set_xticks(np.linspace(t[0],t[-1],11))
+        self.ax.set_xlabel("Tid (" + t_unit + ")")
+        
+    def update(self, new_lines):
+        assert self.N == len(new_lines), "Error: Parameter lenght different from number of sines."
+        for i in range(self.N):
+            self.lines[i].set_ydata(new_lines[i])
+            
+    def setLabels(self, names):
+        self.ax.legend(self.lines, names, loc='upper right')
+        
+    def setStyles(self, styles):
+        for i in range(min(len(styles), len(self.lines))):
+            try:
+                self.lines[i].set_color(styles[i]['color'])
+            except:
+                pass
+            
+            try:
+                self.lines[i].set_linestyle(styles[i]['linestyle'])
+            except:
+                pass
+
+# Frekvensmiksing      
+class FrequencyMixingDemo:
+    def __init__(self, fig_num=4):
+        # Set up canvas
+        plt.close(fig_num)
+        self.fig = plt.figure(fig_num, figsize=(12, 6))
+        
+        
+        # Set up subplot with sine waves
+        ax1 = plt.subplot(2, 1,1)
+        ax1.set_title(r"Frekvensmiksing i tidsplan")
+        
+        self.t = np.linspace(0, 1, 501)
+        self.SineWaves = timeSeriesPlot(ax1, self.t, A_max = 1,  N = 3)
+        
+        self.SineWaves.setStyles([{'color': 'tab:green', 'linestyle': ':'},
+                                  {'color': 'tab:orange', 'linestyle': ':'},
+                                  {'color': 'tab:blue'}])
+        
+        self.SineWaves.setLabels([r'$x_1(t) = \cos(2\pi \cdot f_1 \cdot t + \phi_1)$',
+                                  r'$x_2(t) = \cos(2\pi \cdot f_2 \cdot t + \phi_2)$', 
+                                  r'$y(t)=x_1(t)\cdot x_2(t)$'])
+       # Set up subplot with spectrum
+        ax2 = plt.subplot(2, 1,2)
+        ax2.set_title(r"Frekvensmiksing i frekvensplan")
+        
+        self.Spectrum = dualSpectrumPlot(ax2, f_max=41, A_max = 1,  N = 3)
+        
+        self.Spectrum.setStyles([{'color': 'tab:green', 'linestyle': ':'},
+                                  {'color': 'tab:orange', 'linestyle': ':'},
+                                  {'color': 'tab:blue'}])
+        
+        self.Spectrum.setLabels([r'$x_1(t) = \cos(2\pi \cdot f_1 \cdot t + \phi_1)$',
+                                  r'$x_2(t) = \cos(2\pi \cdot f_2 \cdot t + \phi_2)$', 
+                                  r'$y(t)=x_1(t)\cdot x_2(t)$'])        
+        
+
+
+        # Adjust figure layout
+        self.fig.tight_layout(pad=0.1, w_pad=1.0, h_pad=1.0)
+
+        # Set up slider panel
+        self.sliders, self.layout = sliderPanelSetup(
+            [{'keyword': 'F', 'value': 1, 'min': 0, 'max': 20, 'step': 1, 'description': r'f'},
+             {'keyword': 'phi', 'value': 0.5, 'min': -1, 'max': 1, 'step': 1/12, 'description': r'\phi (\times \pi)'}],
+            n_of_sets = 2)
+        
+        # Run demo
+        out = interactive_output(self.update, self.sliders)
+        display(self.layout, out)
+        
+    def update(self, F1, F2, phi1, phi2):
+
+        x1 = cos(2*pi*F1*self.t + phi1*pi)
+        x2 = cos(2*pi*F2*self.t + phi2*pi)
+        y = x1 * x2
+        
+        self.SineWaves.update([x1, x2, y])
+        f1_line, A1_line = getImpulseLines([-F1, F1],[0.5, 0.5], self.Spectrum.f_max)
+        f2_line, A2_line = getImpulseLines([-F2, F2],[0.5, 0.5], self.Spectrum.f_max)
+                                 
+        if F1==F2:
+            f3_line, A3_line = getImpulseLines(np.array([-F1-F2, 0, F1+F2]),
+                                               np.array([0.25, 0.5*abs(np.cos(np.pi*(phi1-phi2))), 0.25]),
+                                               self.Spectrum.f_max)
+        elif F1 > F2:
+            f3_line, A3_line = getImpulseLines(np.array([-F1-F2, -F1+F2, F1-F2, F1+F2]),
+                                               np.array([0.25, 0.25, 0.25, 0.25]),
+                                               self.Spectrum.f_max)
+        else:
+            f3_line, A3_line = getImpulseLines(np.array([-F1-F2, -F2+F1, F2-F1, F1+F2]),
+                                               np.array([0.25, 0.25, 0.25, 0.25]),
+                                               self.Spectrum.f_max)                
+        self.Spectrum.update([f1_line, f2_line, f3_line],
+                            [A1_line, A2_line, A3_line])
         
 # Funksjoner og klassedefinisjon for fourier demonstrasjon.
 
@@ -152,7 +335,7 @@ class FourierDemo:
         self.r_t = np.absolute(x_t)
         self.phi_t = np.angle(x_t)
         self.f_s = f_s
-        self.t = np.linspace(0, 1, self.L)
+        self.t = np.linspace(0, 1, self.L, endpoint=False)
         self.mixer = 2*pi*self.t
         self.k = 0
         self.k_vect = np.arange(-max_k, max_k+ 1)
@@ -225,7 +408,7 @@ class FourierDemo:
         
         self.ax3b = self.ax3.twiny()
         self.angleCoeff = self.ax3b.stem(np.arange(-max_k, max_k+1), # Samplenummer
-                                         np.angle(self.a_k), # Signalverdier gitt samplenummer (x[n])
+                                         np.angle(self.a_k)*(np.absolute(self.a_k)>1e-6), # Signalverdier gitt samplenummer (x[n])
                                          linefmt='-C0', # Linjestil stolper
                                          markerfmt='.', # Punktstil for stem-markere. Default er 'o' (stor prikk)
                                          basefmt='grey', # Farge på y=0 aksen
