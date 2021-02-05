@@ -1,4 +1,4 @@
-from numpy import sin, cos, pi, exp
+from numpy import sin, cos, pi, exp, real, imag
 from scipy.signal import welch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -169,3 +169,78 @@ class aliasingDemo():
         w_d = 2*pi*F/Fs
         xn = sin(w_d*n)
         self.discreteSignal.update(n, xn)
+        
+# Demo illustrating a discrete complex exponential
+class complexAlias():
+    def __init__(self, fig_num=2, N=5):
+        plt.close(fig_num)
+        self.fig = plt.figure(fig_num, figsize=(6, 6))
+        self.ax1 = plt.subplot()
+        self.ax1.set_aspect(1)
+        self.ax1.grid(True)
+        
+        theta = np.linspace(0, 1, 501)*2*pi
+        x_circ = cos(theta)
+        y_circ = sin(theta)
+        self.ax1.plot(x_circ, y_circ, ':C3')
+        
+        self.N = N
+        self.n = np.arange(N)
+        self.omega = 0
+        self.xn = exp(1j*self.omega*self.n)
+        self.constellation, = self.ax1.plot(np.real(self.xn),
+                                        np.imag(self.xn),
+                                        linewidth=0,
+                                        marker='x',
+                                        markersize=10,
+                                        markeredgewidth=2)
+        
+        self.f_str = str(self.omega/pi)
+        self.ax1.set_title(r"$e^{j\cdot "+self.f_str+"\pi \cdot n}, \ \ n \in \{0, 1, 2, 3, 4\}$")
+        
+        self.annotations = [self.ax1.annotate(txt,
+                                              (np.real(self.xn[i]),
+                                               np.imag(self.xn[i])),
+                                              xytext=(0.0,0.0),
+                                              #textcoords='offset points',
+                                              xycoords='data',
+                                              size='large')
+                            for i, txt in enumerate(self.n)]
+        
+        
+        # Tilpass figur-layout
+        self.fig.tight_layout(pad=0.1, w_pad=1.0, h_pad=1.0)
+        
+        # Set up slider 
+        dig_freq = widget.FloatSlider(value=0,
+                                     min=-2,
+                                     max=2,
+                                     step=1/16,
+                                     description=r'Normalized Frequency $\hat{\omega}\ (\times \pi)$',
+                                     disabled=False,
+                                     style = {'description_width': 'initial'},
+                                     layout=Layout(width='95%'),
+                                     continuous_update=True
+                                     )
+        self.layout = VBox([dig_freq])
+        self.userInput = {
+            'omega': dig_freq
+        }
+        
+        # Run demo
+        out = interactive_output(self.update, self.userInput)
+        display(self.layout, out)
+        
+    def update(self, omega):
+
+        self.omega = omega*pi
+        self.xn = exp(1j*omega*pi*self.n)
+        self.constellation.set_xdata(real(self.xn))
+        self.constellation.set_ydata(imag(self.xn))
+        
+        self.f_str = str(round(self.omega/pi,3))
+        self.ax1.set_title(r"$e^{j\cdot "+self.f_str+"\pi \cdot n}, \ \ n \in \{0, 1, 2, 3, 4\}$")
+        
+        for i in self.n:
+            self.annotations[i].set_x(real(self.xn[i])*0.92)
+            self.annotations[i].set_y(imag(self.xn[i])*0.92)
