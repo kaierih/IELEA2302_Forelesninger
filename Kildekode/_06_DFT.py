@@ -251,14 +251,14 @@ class DFT_Demo():
         ax2 = plt.subplot(3,1,2)
         self.DFT_Amp = interactiveStem(ax2, A_min=0, A_max=10)
         self.DFT_Amp.ax.set_xlabel("Frekvens-indeks $k$")
-        self.DFT_Amp.ax.set_ylabel(r'$\left| X[k] \right| $')
+        self.DFT_Amp.ax.set_ylabel(r'$\left|X\left(e^{j \hat{\omega}}\right)\right|$')
         self.DFT_Amp.ax.set_title(r'Amplitudespekter')
 
         # Set up sine waves on canvas
         ax3 = plt.subplot(3,1,3)
         self.DFT_Phase = interactiveStem(ax3, A_max=np.pi, A_min=-np.pi)
         self.DFT_Phase.ax.set_xlabel("Frekvens-indeks $k$")
-        self.DFT_Phase.ax.set_ylabel(r'$\angle X[k]$')
+        self.DFT_Phase.ax.set_ylabel(r'$\angle X\left(e^{j \hat{\omega}}\right)$')
         self.DFT_Phase.ax.set_yticks(np.pi*np.linspace(-1,1,9))
         self.DFT_Phase.ax.set_yticklabels([str(round(x, 2)) + '$\pi$' for x in np.linspace(-1,1,9)])
         self.DFT_Phase.ax.set_title(r'Fasespekter')
@@ -270,7 +270,7 @@ class DFT_Demo():
         # Set up slider panel
         # Set up UI panel
         window_len = widget.BoundedIntText(
-                                        value = 32,
+                                        value = 10,
                                         min=0,
                                         max=64,
                                         step = 1,
@@ -287,7 +287,7 @@ class DFT_Demo():
                                         step = 0.1,
                                         description=r'Digital Frekvens $\hat{\omega}\ (\times \pi)$:',
                                         disabled=False,
-                                        style = {'description_width': '30%'},
+                                        style = {'description_width': '20%'},
                                         layout=Layout(width='95%'),
                                         continuous_update=False
         )
@@ -298,7 +298,7 @@ class DFT_Demo():
                                         step = 0.05,
                                         description='Ampltiude $A$:',
                                         disabled=False,
-                                        style = {'description_width': '30%'},
+                                        style = {'description_width': '20%'},
                                         layout=Layout(width='95%'),
                                         continuous_update=False
         )
@@ -307,9 +307,9 @@ class DFT_Demo():
                                         min=-1,
                                         max=1,
                                         step = 1/12,
-                                        description=r'Phase $\phi \ (\times \pi)$:',
+                                        description='Phase $\phi$:',
                                         disabled=False,
-                                        style = {'description_width': '30%'},
+                                        style = {'description_width': '20%'},
                                         layout=Layout(width='95%'),
                                         continuous_update=False
         )
