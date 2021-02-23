@@ -183,3 +183,136 @@ class SpectralLeakageDemo:
                                             
         self.AmpSpectrum.update([f_line],[A_line])
         self.AmpSpectrum.ax.set_ylim(ymax=N/1.7)
+        
+def getArrow(x, y, dx, dy, arrowhead_scale=1):
+    r = np.hypot(dx, dy)
+    theta = np.arctan2(dy,dx)
+    len_arrowhead = min(arrowhead_scale/16, r/2)
+    x_arrow = np.array([x, x+dx, x+dx+len_arrowhead*cos(theta-4*pi/5), x+dx, x+dx+len_arrowhead*cos(theta+4*pi/5)])
+    y_arrow = np.array([y, y+dy, y+dy+len_arrowhead*sin(theta-4*pi/5), y+dy, y+dy+len_arrowhead*sin(theta+4*pi/5)])
+    return x_arrow, y_arrow
+
+class vectorPlot:
+    def __init__(self, ax, A_max, N=1, arrowhead_scale=1):
+        self.ax = ax
+        self.N = N
+        self.arrowhead_scale=arrowhead_scale
+        init_values = np.zeros((2, N))
+        self.lines = self.ax.plot(init_values, init_values)
+        self.ax.grid(True)
+        self.ax.set_xlabel("Reell akse")
+        self.ax.set_ylabel("Imaginær akse")
+        self.ax.axis([-A_max, A_max, -A_max, A_max])
+        
+    def update(self, x_new_lines, y_new_lines):
+        assert len(x_new_lines)==len(y_new_lines)==self.N, 'Error: mismatch between x and y dimensions.'
+        for i in range(self.N):
+            x_line = x_new_lines[i]
+            y_line = y_new_lines[i]
+            L = len(x_line)
+            assert len(y_line)==L, 'Error: mismatch between x and y dimensions.'
+            x_arrows = np.zeros((L-1)*5)
+            y_arrows = np.zeros((L-1)*5)
+            for j in range(1, L):
+                b = j*5
+                a = b-5
+                x_arrows[a:b], y_arrows[a:b] = getArrow(x_line[j-1], y_line[j-1], x_line[j]-x_line[j-1], y_line[j]-y_line[j-1], arrowhead_scale = self.arrowhead_scale)
+            self.lines[i].set_xdata(x_arrows)
+            self.lines[i].set_ydata(y_arrows)
+            
+    def setLabels(self, names):
+        self.ax.legend(self.lines, names, loc='upper right')
+        
+    def setStyles(self, styles):
+        for i in range(min(len(styles), len(self.lines))):
+            try:
+                self.lines[i].set_color(styles[i]['color'])
+            except:
+                pass
+            
+            try:
+                self.lines[i].set_linestyle(styles[i]['linestyle'])
+            except:
+                pass 
+
+# Vektorrepresentasjon av komplekst tall på polarform        
+class DTFT_demo:
+    def __init__(self, xn, fig_num=5, figsize=(12,8)):
+        self.xn = xn
+        self.N = len(xn)
+        self.f = np.linspace(-1, 1, 501)
+        self.H_f = np.fft.fftshift(np.fft.fft(xn, 501))
+        
+        
+        # Set up canvas
+        plt.close(fig_num)
+        self.fig = plt.figure(fig_num, figsize=figsize)
+        
+        ax = plt.subplot(2,3, (1, 5))
+    
+     
+        ax.set_title(r"$\sum_{n=0}^{N-1} x[n]\cdot e^{j\hat{\omega}\cdot n}$")
+        ax.set_aspect(1)
+        self.VectorFig = vectorPlot(ax, A_max = sum(np.absolute(xn)), N = 2, arrowhead_scale = self.N/2)
+        
+        self.VectorFig.setStyles([{'color': 'tab:blue'}])
+        self.VectorFig.lines[1].set_color('C3')
+        self.VectorFig.ax.plot(np.real(self.H_f), np.imag(self.H_f), ':C0')
+        
+        ax2 = plt.subplot(2,3,3)
+        ax2.plot(self.f, np.abs(self.H_f))
+        ax2.set_xlim([-1, 1])
+        ax2.set_ylim(ymin=0)
+        ax2.grid(True)
+        ax2.set_ylabel(r'$\left|X\left(e^{j\hat{\omega}} \right) \right|$')
+        ax2.set_xticks(np.linspace(-1, 1, 5))
+        ax2.set_xticklabels([str(round(f,1))+'$\pi$' for f in np.linspace(-1, 1, 5)])
+        
+        self.MagHighlight, = ax2.plot([0,0], [0,0], 'C3')
+        self.MagHighlight.set_ydata([0, 100])
+        
+      
+        ax3 = plt.subplot(2,3,6)
+        ax3.plot(self.f, np.angle(self.H_f)*(np.abs(self.H_f)>1e-10))
+        ax3.set_xlim([-1, 1])
+        ax3.set_ylim([-pi, pi])
+        ax3.set_yticks(np.linspace(-1, 1, 9)*pi)
+        ax3.set_yticklabels([str(round(f,1))+'$\pi$' for f in np.linspace(-1, 1, 9)])
+        ax3.set_ylabel(r'$\angle X\left(e^{j\hat{\omega}} \right)$')
+        ax3.set_xticks(np.linspace(-1, 1, 5))
+        ax3.set_xticklabels([str(round(f,1))+'$\pi$' for f in np.linspace(-1, 1, 5)])
+        ax3.set_xlabel(r'Digital Frekvens $\hat{\omega}$')
+        
+        self.AngleHighlight, = ax3.plot([0,0], [0,0], 'C3')
+        self.AngleHighlight.set_ydata([-100, 100])
+        
+        ax3.grid(True)
+        
+        # Tilpass figur-layout
+        self.fig.tight_layout(pad=0.1, w_pad=1.0, h_pad=1.0)
+
+        signal_freq = widget.FloatSlider(
+                                        value = 0.0,
+                                        min=-1,
+                                        max=1,
+                                        step = 1/60,
+                                        description=r'Digital Frekvens $\hat{\omega}\ (\times \pi)$:',
+                                        disabled=False,
+                                        style = {'description_width': '30%'},
+                                        layout=Layout(width='95%'),
+                                        continuous_update=True
+        )
+        layout = HBox([signal_freq])
+        # Run Demo:
+        out = interactive_output(self.update, {'omega': signal_freq})
+        display(layout, out)
+        
+    def update(self, omega):
+        vectors = self.xn*np.exp(1j*omega*pi*np.arange(self.N))
+        vectorSums = np.array([np.sum(vectors[0:i]) for i in range(self.N+1)])
+        x = np.append(np.array([0]), np.real(vectorSums))
+        y = np.append(np.array([0]), np.imag(vectorSums))
+        self.VectorFig.update([x, np.array([0, x[-1]])], [y, np.array([0, y[-1]])])
+        
+        self.MagHighlight.set_xdata([omega, omega])
+        self.AngleHighlight.set_xdata([omega, omega])
